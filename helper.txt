@@ -1,0 +1,1032 @@
+import axios from "axios";
+
+const types = {
+  SET_USER_LOGIN: "SET_USER_LOGIN",
+  SET_LOGIN_FLAG: "SET_LOGIN_FLAG",
+  SET_USER_TOKEN: "SET_USER_TOKEN",
+  SET_MY_PROCEDURE_LIST: "SET_MY_PROCEDURE_LIST",
+  SET_PERSONAL_PROCEDURE: "SET_PERSONAL_PROCEDURE",
+  SET_RESET: "SET_RESET",
+  SET_IS_LOADING: "SET_IS_LOADING",
+  SET_FILE: "SET_FILE",
+  SET_ADMIN_DATA: "SET_ADMIN_DATA",
+  SET_ADMIN_EXPIRE: "SET_ADMIN_EXPIRE",
+  SET_TRAMIT_ADMIN_DATA: "SET_TRAMIT_ADMIN_DATA",
+  SET_PROCEDURES_ARCHIVES: "SET_PROCEDURES_ARCHIVES",
+  SET_PROCEDURES_FORCEDELETE: "SET_PROCEDURES_FORCEDELETE",
+  SET_PROCEDURES_RESTORE: "SET_PROCEDURES_RESTORE",
+  SET_PROCEDURE_EDIT_FLAG: "SET_PROCEDURE_EDIT_FLAG",
+  SET_ADMIN_PROCEDURE: "SET_ADMIN_PROCEDURE",
+  SET_USER_LIST: "SET_USER_LIST",
+  //PARTE DE LOS USUARIOS DEL SA
+  SET_USERDATA_EDIT: "SET_USERDATA_EDIT",
+  SET_USERDATA_EDIT_FLAG: "SET_USERDATA_EDIT_FLAG",
+  UPDATE_USER: "UPDATE_USER",
+  SET_ADMIN_REVIEW: "SET_ADMIN_REVIEW",
+};
+const state = {
+  loguedUser: {},
+  isUserLogued: false,
+  userToken: "",
+  //server: "http://127.0.0.1:8000",
+  server: "https://backend-tramites-2jxoq.ondigitalocean.app",
+  myProcedures: [],
+  proceduresArchives: [],
+  personalProcedureDetail: {
+    id: 1,
+    procedure: {
+      name: "",
+      serves_for: "",
+      objetive: "",
+      dependecy: {
+        name: "",
+        schedule: "",
+        address: "",
+      },
+      requirements: [],
+    },
+  },
+  requireReset: false,
+  isLoading: false,
+  file: false,
+  adminData: [],
+  isSetExpire: false,
+  tramitAdminData: [],
+  adminProcedure: {
+    nombre: "",
+    descripcion: "",
+    precio: "",
+    publicoObjetivo: "",
+    tipoTramite: "",
+    objetivoTramite: "",
+    modalidad: "",
+    tiempoServicio: "",
+  },
+  procedureEditFlag: false,
+  userList: [],
+  userDataEdit: {
+    born_date: "",
+    colony: "",
+    created_at: "",
+    curp: "",
+    dependency_id: 0,
+    email: "",
+    gender: "",
+    id: 0,
+    lastname: "",
+    municipality: "",
+    name: "",
+    phone: "",
+    role: "",
+    updated_at: "",
+    zip_code: "",
+  },
+  userDataFlag: false,
+  updateUserFlag: false,
+  isProcedureInReview: false,
+};
+
+const actions = {
+  login({ commit }, params) {
+    let formData = new FormData();
+    formData.append("curp", params.curp);
+    formData.append("password", params.password);
+
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/user/login", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "Access-Control-Allow-Origin": "*",
+          },
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_USER_LOGIN, data.user);
+          commit(types.SET_LOGIN_FLAG, true);
+          commit(types.SET_USER_TOKEN, data.token.accessToken);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },  
+  logout({ commit }) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+    };
+
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/user/logout", {}, { headers })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_USER_TOKEN, "");
+          commit(types.SET_USER_LOGIN, {});
+          commit(types.SET_LOGIN_FLAG, false);
+          resolve();
+        })
+        .catch(() => {});
+    });
+  },
+  storeCategory({ commit }, data) {
+    let formData = new FormData();
+    formData.append("name", data.name);
+    formData.append("price", data.price);
+    return new Promise((resolve) => {
+        axios
+            .post(state.server + "/requirements/store-category", formData, {
+                headers: {
+                    "Authorization": `${"Bearer"}${" "}${state.userToken}`,
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "multipart/form-data",
+                },
+            })
+            .then(({ data }) => {
+              commit(types.SET_LOGIN_FLAG, false);
+              resolve(data);
+            });
+    });
+  },  
+  registerNewUser({ commit }, params) {
+    let formData = new FormData();
+    formData.append("name", params.name);
+    formData.append("lastname", params.lastname);
+    formData.append("born_date", params.born_date);
+    formData.append("curp", params.curp);
+    formData.append("gender", params.gender);
+    formData.append("email", params.email);
+    formData.append("password", params.password);
+    formData.append("zip_code", params.zip_code);
+    formData.append("colony", params.colony);
+    formData.append("municipality", params.municipality);
+    formData.append("phone", params.phone);
+    if (params.dependency_id) {
+      formData.append("dependency_id", params.dependency_id);
+    }
+    formData.append("role", params.role);
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/user/store", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "Access-Control-Allow-Origin": "*",
+          },
+        })
+        .then(() => {
+          commit(types.SET_LOGIN_FLAG, false);
+          resolve();
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  registerProcedure({ commit }, params) {
+    let formData = new FormData();
+    formData.append("name", params.name);
+    formData.append("description", params.description);
+    formData.append("price", params.price);
+    formData.append("objetive", params.objetive);
+    formData.append("validate_service", params.validate_service);
+    formData.append("type", params.type);
+    formData.append("serves_for", params.serves_for);
+    formData.append("modality", params.modality);
+    formData.append("mode", params.mode);
+    formData.append("dependency_id", params.dependency_id);
+
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/procedures/store", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_TRAMIT_ADMIN_DATA, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  editProcedure({ commit }, params) {
+    let formData = new FormData();
+    formData.append("name", params.name);
+    formData.append("description", params.description);
+    formData.append("price", params.price);
+    formData.append("objetive", params.objetive);
+    formData.append("validate_service", params.validate_service);
+    formData.append("type", params.type);
+    formData.append("serves_for", params.serves_for);
+    formData.append("modality", params.modality);
+    formData.append("mode", params.mode);
+    formData.append("id", params.id);
+
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/procedures/update", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_TRAMIT_ADMIN_DATA, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  deleteProcedure({ commit }, params) {
+    let formData = new FormData();
+    formData.append("id", params.id);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/procedures/delete", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_TRAMIT_ADMIN_DATA, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  consultCURP({ commit }, params) {
+    let formData = new FormData();
+    formData.append("curp", params.curp);
+    console.log(params.curp);
+    axios
+      .post(
+        "http://www.renapo.sep.gob.mx/wsrenapo/MainControllerParam",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers":
+              "Origin,X-Requested-Width,Content-Type,Accept",
+          },
+        }
+      )
+      .then(({ response }) => {
+        console.log(response);
+        commit(types.SET_LOGIN_FLAG, false);
+      })
+      .catch(() => {});
+  },
+  setMyProcedureList({ commit }) {
+    commit(types.SET_IS_LOADING, true);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+    };
+    return new Promise((resolve, reject) => {
+      axios
+        .post(
+          state.server + "/list-procedure-user/list",
+          {
+            user_id: state.loguedUser.id,
+          },
+          { headers }
+        )
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_MY_PROCEDURE_LIST, data);
+          commit(types.SET_IS_LOADING, false);
+          resolve();
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  setPersonalProcedureDetail({ commit }, params) {
+    commit(types.SET_PERSONAL_PROCEDURE, params);
+  },
+  getPersonalProcedureDetail({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("id", params.id);
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/list-procedure-user/get", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          //console.log(data);
+          commit(types.SET_PERSONAL_PROCEDURE, data[0]);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });   
+       
+    });
+    
+  },
+  deleteListProcedure({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("id", params.id);
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/list-procedure-user/delete", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log('data: '+data);
+          console.log('data[0]: '+data[0]);
+          commit(types.SET_PERSONAL_PROCEDURE, data[0]);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    });
+  },  
+  initNewTramit({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("procedure_id", params.procedure_id);
+    formData.append("user_id", params.user_id);
+    formData.append("folio", params.folio);
+
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/list-procedure-user/store", formData, {
+          headers,
+        })
+        .then(() => {
+          commit(types.SET_LOGIN_FLAG, true);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    });
+  },
+  resetPassword({ commit }, params) {
+    let formData = new FormData();
+    formData.append("email", params.email);
+    console.log(params.email);
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/user/forgot", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "Access-Control-Allow-Origin": "*",
+          },
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_RESET, false);
+          resolve();
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  userProceduresArchive({ commit }) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "application/json",
+    };
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/procedures/show-deletes", {}, { headers })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_PROCEDURES_ARCHIVES, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  deleteProcedureForever({ commit }, params) {
+    commit(types.SET_PROCEDURES_FORCEDELETE, true);
+    let formData = new FormData();
+    formData.append("id", params.id);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/procedures/force-delete", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_PROCEDURES_FORCEDELETE, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  getAdminData({ commit }) {
+    commit(types.SET_IS_LOADING, true);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("search", "");
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/admin-list/procedures", formData, { headers })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_ADMIN_DATA, data);
+          resolve();
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  getAdminData2({ commit }) {
+    commit(types.SET_IS_LOADING, true);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("search", "");
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/admin-list/procedures", formData, { headers })
+        .then(({ data }) => {
+          commit(types.SET_IS_LOADING, false);
+          let filteredTramits = [];
+          data.forEach(element => {
+            let has_requireds = false;
+            let count_requireds = 0;
+            element.procedure.requirements.forEach(requirement => {
+              if(requirement.is_requirement == 1){
+                has_requireds = true;
+                count_requireds ++;
+              }
+            });
+            if(has_requireds && element.uploadrequeriments.length > 0 && element.uploadrequeriments.length >= count_requireds){
+               filteredTramits.push(element);
+            }
+            // else{
+               
+            //     let verify = true;
+            //   element.uploadrequeriments.forEach(uploaded_requirement => {
+            //     if(uploaded_requirement.requirement.is_requirement == true && verify){
+            //        filteredTramits.push(element);
+            //         verify = false;
+            //     }
+            //  });
+            // }
+          });
+          commit(types.SET_ADMIN_DATA, filteredTramits);
+          resolve();
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  setExpire({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("id", params.id);
+    formData.append("expires_at", params.expire_at);
+
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/list-procedure-user/expire", formData, {
+          headers,
+        })
+        .then(() => {
+          commit(types.SET_ADMIN_EXPIRE, false);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    });
+  },
+  setStatusUploadedData({ commit }, params) {
+    console.log(params);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    let formDataId = new FormData();
+    formDataId.append("id", params.list_procedure_id);
+    console.log(params.list_procedure_id);
+    formData.append("id", params.id);
+    formData.append("status", params.status);
+    if (params.observations) {
+      formData.append("observations", params.observations);
+    }
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/upload-requirements/update-status", formData, {
+          headers,
+        })
+        .then(() => {
+          console.log(formData);
+          commit(types.SET_ADMIN_EXPIRE, false);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+        console.log(formDataId);
+          axios
+            .post(state.server + "/list-procedure-user/en-seguimiento", formDataId, {
+              headers,
+            })
+            .then(() => {
+              //commit(types.SET_PERSONAL_PROCEDURE, data[0].uploadrequeriments[0].list_procedure_id);
+              resolve();
+            })
+            .catch((error) => {
+              console.log(error);
+            });
+    });
+  },
+  uploadFile({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("requirements_id", params.requirements_id);
+    formData.append("image_file", params.image_file);
+    formData.append("list_procedure_id", params.list_procedure_id);
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/upload-requirements/store", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_FILE, false);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    });
+  },
+  updateFile({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    let formDataId = new FormData();
+    formDataId.append("id", params.list_procedure_id);
+    formData.append("requirements_id", params.requirements_id);
+    formData.append("image_file", params.image_file);
+    formData.append("list_procedure_id", params.list_procedure_id);
+    formData.append("status", params.status);
+    console.log(formData);
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/upload-requirements/update", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          console.log(params.list_procedure_id)
+          commit(types.SET_FILE, false);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+        axios
+        .post(state.server + "/list-procedure-user/update-file", formDataId, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(formDataId);
+          commit(types.SET_PERSONAL_PROCEDURE, data[0].uploadrequeriments[0].list_procedure_id);
+          resolve();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+
+        
+    });
+  },
+
+  getTramitAdminData({ commit }) {
+    commit(types.SET_IS_LOADING, true);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("search", "");
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/admin-list/procedures", formData, { headers })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_TRAMIT_ADMIN_DATA, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  getTramitDepency({ commit }) {
+    commit(types.SET_IS_LOADING, true);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("search", "");
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/admin-list/list-by-my-dependency", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_TRAMIT_ADMIN_DATA, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  restoreProcedure({ commit }) {
+    commit(types.SET_IS_LOADING, true);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("search", "");
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/procedures/restore", formData, { headers })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_IS_LOADING, false);
+          commit(types.SET_TRAMIT_ADMIN_DATA, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  createRequirement({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Content-Type": "multipart/form-data",
+      "Access-Control-Allow-Origin": "*",
+    };
+    let formData = new FormData();
+    formData.append("name", params.name);
+    formData.append("procedure_id", params.procedure_id);
+    formData.append("type", params.tipo);
+    formData.append("selected", params.selected);
+    formData.append("category_id", params.category_id);
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/requirements/store", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          commit(types.SET_IS_LOADING, false);
+          resolve(data);
+        });
+    });
+  },
+  updateRequirement({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Content-Type": "multipart/form-data",
+      "Access-Control-Allow-Origin": "*",
+    };
+    let formData = new FormData();
+    formData.append("name", params.name);
+    formData.append("procedure_id", params.procedure_id);
+    formData.append("id", params.id);
+    formData.append("type", params.tipo);
+    formData.append("selected", params.selected);
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/requirements/update", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          commit(types.SET_IS_LOADING, false);
+          console.log(data);
+          resolve(data);
+        });
+    });
+  },
+  deleteRequirement({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Content-Type": "multipart/form-data",
+      "Access-Control-Allow-Origin": "*",
+    };
+    let formData = new FormData();
+    formData.append("id", params.id);
+    return new Promise((resolve) => {
+      axios
+        .post(state.server + "/requirements/delete", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          commit(types.SET_IS_LOADING, false);
+          resolve(data);
+        });
+    });
+  },
+  setUserLoggedIn({ commit }, params) {
+    commit(types.SET_USER_LOGIN, params.user);
+    commit(types.SET_LOGIN_FLAG, true);
+    commit(types.SET_USER_TOKEN, params.accessToken);
+  },
+  setAdminProcedure({ commit }, params) {
+    return new Promise((resolve) => {
+      commit(types.SET_ADMIN_PROCEDURE, params);
+      resolve();
+    });
+  },
+  setAdminProcedureEdit({ commit }, params) {
+    commit(types.SET_PROCEDURE_EDIT_FLAG, params);
+  },
+
+  getUserList({ commit }) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    let formData = new FormData();
+    formData.append("role", "Administrador");
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/user/list", formData, { headers })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.SET_USER_LIST, data);
+          resolve(data);
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  setUserDataEditFlag({ commit }, params) {
+    commit(types.SET_USERDATA_EDIT_FLAG, params);
+  },
+  setUserDataEdit({ commit }, params) {
+    return new Promise((resolve) => {
+      commit(types.SET_USERDATA_EDIT, params);
+      resolve();
+    });
+  },
+  deleteUser({ commit }, params) {
+    let formData = new FormData();
+    formData.append("id", params.id);
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "multipart/form-data",
+    };
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/user/delete", formData, {
+          headers,
+        })
+        .then(({ data }) => {
+          console.log(data);
+          commit(types.UPDATE_USER, false);
+          resolve();
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  editUser({ commit }, params) {
+    const AuthStr = `${"Bearer"}${" "}${state.userToken}`;
+    const headers = {
+      Authorization: AuthStr,
+      "Content-Type": "multipart/form-data",
+      "Access-Control-Allow-Origin": "*",
+    };
+    let formData = new FormData();
+    formData.append("name", params.name);
+    formData.append("lastname", params.lastname);
+    formData.append("born_date", params.born_date);
+    formData.append("curp", params.curp);
+    formData.append("gender", params.gender);
+    formData.append("zip_code", params.zip_code);
+    formData.append("colony", params.colony);
+    formData.append("municipality", params.municipality);
+    formData.append("phone", params.phone);
+    formData.append("dependency_id", params.dependency_id);
+    formData.append("role", "Administrador");
+    formData.append("id", params.id);
+
+    return new Promise((resolve, reject) => {
+      axios
+        .post(state.server + "/user/update", formData, { headers })
+        .then(() => {
+          commit(types.UPDATE_USER, false);
+          resolve();
+        })
+        .catch((error) => {
+          reject();
+          console.log(error);
+        });
+    });
+  },
+  setProcedureAdminReview({ commit }, params) {
+    commit(types.SET_ADMIN_REVIEW, params);
+  },
+};
+
+const mutations = {
+  [types.SET_USER_LOGIN](state, data) {
+    state.loguedUser = data;
+  },
+  [types.SET_LOGIN_FLAG](state, data) {
+    state.isUserLogued = data;
+  },
+  [types.SET_USER_TOKEN](state, data) {
+    state.userToken = data;
+  },
+  [types.SET_MY_PROCEDURE_LIST](state, data) {
+    state.myProcedures = data;
+  },
+  [types.SET_PERSONAL_PROCEDURE](state, data) {
+    state.personalProcedureDetail = data;
+  },
+  [types.SET_RESET](state, data) {
+    state.requireReset = data;
+  },
+  [types.SET_IS_LOADING](state, data) {
+    state.isLoading = data;
+  },
+  [types.SET_FILE](state, data) {
+    state.file = data;
+  },
+  [types.SET_ADMIN_DATA](state, data) {
+    state.adminData = data;
+  },
+  [types.SET_ADMIN_EXPIRE](state, data) {
+    state.isSetExpire = data;
+  },
+  [types.SET_TRAMIT_ADMIN_DATA](state, data) {
+    state.tramitAdminData = data;
+  },
+  [types.SET_PROCEDURE_EDIT_FLAG](state, data) {
+    state.procedureEditFlag = data;
+  },
+  [types.SET_ADMIN_PROCEDURE](state, data) {
+    state.adminProcedure = data;
+  },
+  [types.SET_USER_LIST](state, data) {
+    state.userList = data;
+  },
+  [types.SET_USERDATA_EDIT](state, data) {
+    state.userDataEdit = data;
+  },
+  [types.SET_USERDATA_EDIT_FLAG](state, data) {
+    state.userDataFlag = data;
+  },
+  [types.UPDATE_USER](state, data) {
+    state.updateUserFlag = data;
+  },
+  [types.SET_PROCEDURES_ARCHIVES](state, data) {
+    state.proceduresArchives = data;
+  },
+  [types.SET_PROCEDURES_FORCEDELETE](state, data) {
+    state.proceduresForcedelete = data;
+  },
+  [types.SET_PROCEDURES_RESTORE](state, data) {
+    state.proceduresRestore = data;
+  },
+  [types.SET_ADMIN_REVIEW](state, data) {
+    state.isProcedureInReview = data;
+  },
+};
+
+export default {
+  namespaced: true,
+  state,
+  actions,
+  mutations,
+};
